@@ -159,7 +159,11 @@ if(mCCD_B[9])
 	tempB = 5'b11111; 
 end
 
-always_ff@(posedge VGA_CLK)
+/*onchip24_linebuffer (clock, shiftin, shiftout,
+	taps);*/
+
+
+always_ff@(posedge CCD_PIXCLK)
 begin
 /*if(!KEY[0]) begin
 	camcolor <= 0;
@@ -172,18 +176,20 @@ camcolor <= edgefilter;
 else
 camcolor <= {tempR, tempG, tempB};*/
 
+
 case(filterchoose)
- 2'b00: camcolor <= {tempR, tempG, tempB};
- 2'b01: camcolor <= /*grayfilter;*/{5'b11111-tempR, 6'b111111-tempG, 5'b11111-tempB};
- 2'b10: camcolor <= edgefilter;
- 2'b11: camcolor <= whitefilter;
+ 3'b000: camcolor <= {tempR, tempG, tempB};
+ 3'b001: camcolor <= grayfilter;
+ 3'b010: camcolor <= edgefilter;
+ 3'b011: camcolor <= whitefilter;
+ 3'b100: camcolor <= {5'b11111-tempR, 6'b111111-tempG, 5'b11111-tempB};
  default: camcolor <= {tempR, tempG, tempB};
 endcase
 end						
 I2C_CCD_Config 		u7	(	//	Host Side
 							.iCLK(CLOCK_50),
 							.iRST_N(KEY[0]),
-							.iExposure(SW[17:2]),
+							.iExposure(SW[17:4]),
 							//	I2C Side
 							.I2C_SCLK(GPIO[14]),
 							.I2C_SDAT(GPIO[15])	);
@@ -284,7 +290,7 @@ if(avail && Read && drawxsig > 80 && drawxsig < 560 && drawxsig[0])begin
 end
 logic [23:0] invertfilter, tempRGB;
 logic [15:0] edgefilter, whitefilter, grayfilter;
-logic [1:0] filterchoose;
+logic [2:0] filterchoose;
 
 always_ff @ (posedge VGA_CLK) begin
 	if(!KEY[0]) begin
@@ -298,11 +304,11 @@ always_ff @ (posedge VGA_CLK) begin
 end
 
 always_ff @ (posedge VGA_CLK) begin
-	filterchoose[1:0] <= SW[1:0];
+	filterchoose <= SW[2:0];
 end
-grayscale (VGA_CLK, {tempR,tempG,tempB}, grayfilter, KEY[0]);
-edgeDetect (VGA_CLK, {tempR,tempG,tempB}, edgefilter, KEY[0]);
-whiteDetect (VGA_CLK, {tempR,tempG,tempB}, whitefilter, KEY[0]);
+grayscale (CCD_PIXCLK, {tempR,tempG,tempB}, grayfilter, KEY[0]);
+edgeDetect (CCD_PIXCLK, {tempR,tempG,tempB}, edgefilter, KEY[0]);
+whiteDetect (CCD_PIXCLK, {tempR,tempG,tempB}, whitefilter, KEY[0]);
 //invert inv1(VGA_CLK, {{color[15:11], color[14:12]}, {color[10:8],color[7:5], 2'b00}, {color[4:0], color[3:1]}}, invertfilter);
 
 vga_controller vgasync_instance(      .Clk(CLOCK_50),       // 50 MHz clock

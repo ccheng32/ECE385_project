@@ -8,7 +8,7 @@ module I2C_CCD_Config (	//	Host Side
 //	Host Side
 input			iCLK;
 input			iRST_N;
-input	[15:0]	iExposure;
+input	[13:0]	iExposure;
 //	I2C Side
 output		I2C_SCLK;
 inout		I2C_SDAT;
@@ -103,7 +103,7 @@ begin
 	0	:	LUT_DATA	<=	16'h0000;
 	1	:	LUT_DATA	<=	16'h2000;
 	2	:	LUT_DATA	<=	16'hF101;	//	Mirror Row and Columns
-	3	:	LUT_DATA	<=	{8'h09,iExposure[15:8]};//	Exposure
+	3	:	LUT_DATA	<=	{8'h09,2'b00,iExposure[13:8]};//	Exposure
 	4	:	LUT_DATA	<=	{8'hF1,iExposure[7:0]};
 	5	:	LUT_DATA	<=	16'h2B00;//16'h2B00;	//	Green 1 Gain
 	6	:	LUT_DATA	<=	16'hF1B0;
