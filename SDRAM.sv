@@ -174,19 +174,19 @@ camcolor <= {tempR, tempG, tempB};*/
 
 case(filterchoose)
  2'b00: camcolor <= {tempR, tempG, tempB};
- 2'b01: camcolor <= {5'b11111-tempR, 6'b111111-tempG, 5'b11111-tempB};
+ 2'b01: camcolor <= /*grayfilter;*/{5'b11111-tempR, 6'b111111-tempG, 5'b11111-tempB};
  2'b10: camcolor <= edgefilter;
  2'b11: camcolor <= whitefilter;
  default: camcolor <= {tempR, tempG, tempB};
 endcase
 end						
-/*I2C_CCD_Config 		u7	(	//	Host Side
+I2C_CCD_Config 		u7	(	//	Host Side
 							.iCLK(CLOCK_50),
 							.iRST_N(KEY[0]),
 							.iExposure(SW[17:2]),
 							//	I2C Side
 							.I2C_SCLK(GPIO[14]),
-							.I2C_SDAT(GPIO[15])	);*/
+							.I2C_SDAT(GPIO[15])	);
 
 
 				  	logic [19:0] MMaddr;
@@ -283,7 +283,7 @@ if(avail && Read && drawxsig > 80 && drawxsig < 560 && drawxsig[0])begin
  end
 end
 logic [23:0] invertfilter, tempRGB;
-logic [15:0] edgefilter, whitefilter;
+logic [15:0] edgefilter, whitefilter, grayfilter;
 logic [1:0] filterchoose;
 
 always_ff @ (posedge VGA_CLK) begin
@@ -291,16 +291,16 @@ always_ff @ (posedge VGA_CLK) begin
 	tempRGB <= 0;
 	end
 	else begin
-	tempRGB[23:16] <={color[15:11], color[14:12]};
+	tempRGB[23:16] <={color[15:11], 3'b0};
 	tempRGB[15:8] <={color[10:8],color[7:5], 2'b00};
-	tempRGB[7:0] <={color[4:0], color[3:1]}; 
+	tempRGB[7:0] <={color[4:0], 3'b0}; 
 	end
 end
 
 always_ff @ (posedge VGA_CLK) begin
 	filterchoose[1:0] <= SW[1:0];
 end
-
+grayscale (VGA_CLK, {tempR,tempG,tempB}, grayfilter, KEY[0]);
 edgeDetect (VGA_CLK, {tempR,tempG,tempB}, edgefilter, KEY[0]);
 whiteDetect (VGA_CLK, {tempR,tempG,tempB}, whitefilter, KEY[0]);
 //invert inv1(VGA_CLK, {{color[15:11], color[14:12]}, {color[10:8],color[7:5], 2'b00}, {color[4:0], color[3:1]}}, invertfilter);
