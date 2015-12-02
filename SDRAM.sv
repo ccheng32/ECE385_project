@@ -159,8 +159,27 @@ if(mCCD_B[9])
 	tempB = 5'b11111; 
 end
 
-/*onchip24_linebuffer (clock, shiftin, shiftout,
-	taps);*/
+logic [7:0] lineR, lineG, lineB;
+always_ff @(posedge CCD_PIXCLK)
+begin
+if(mCCD_R[9])
+	lineR = 8'hff;
+	else
+   lineR = mCCD_R[8:1];
+if(mCCD_G[9])
+	lineG = 8'hff;
+	else
+	lineG = mCCD_G[8:1];
+if(mCCD_B[9])
+	lineB = 8'hff;
+	else
+	lineB = mCCD_B[8:1];
+end
+
+logic [23:0] line0out, line1out, line2out;
+onchip24_linebuffer line0(.clock(CCD_PIXCLK), .shiftin({lineR,lineG,lineB}), .shiftout(line0out));
+onchip24_linebuffer line1(.clock(CCD_PIXCLK), .shiftin(line0out), .shiftout(line1out));
+onchip24_linebuffer line2(.clock(CCD_PIXCLK), .shiftin(line1out), .shiftout(line2out));
 
 
 always_ff@(posedge CCD_PIXCLK)
@@ -180,10 +199,11 @@ camcolor <= {tempR, tempG, tempB};*/
 case(filterchoose)
  3'b000: camcolor <= {tempR, tempG, tempB};
  3'b001: camcolor <= grayfilter;
- 3'b010: camcolor <= edgefilter;
+ 3'b010: camcolor <= {line1out[23:19], line1out[15:10], line1out[7:3]};
  3'b011: camcolor <= whitefilter;
  3'b100: camcolor <= {5'b11111-tempR, 6'b111111-tempG, 5'b11111-tempB};
- default: camcolor <= {tempR, tempG, tempB};
+ //3'b101: camcolor <= {line1out[23:19], line1out[15:10], line1out[7:3]};
+ default: camcolor <= edgefilter;
 endcase
 end						
 I2C_CCD_Config 		u7	(	//	Host Side
@@ -303,7 +323,7 @@ always_ff @ (posedge VGA_CLK) begin
 	end
 end
 
-always_ff @ (posedge VGA_CLK) begin
+always_ff @ (posedge CCD_PIXCLK) begin
 	filterchoose <= SW[2:0];
 end
 grayscale (CCD_PIXCLK, {tempR,tempG,tempB}, grayfilter, KEY[0]);
