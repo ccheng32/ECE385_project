@@ -150,20 +150,40 @@ begin
    tempR = mCCD_R[8:4];
    tempB = mCCD_B[8:4];
    tempG = mCCD_G[8:3];
+   
 if(mCCD_R[9])
 	tempR = 5'b11111;
 if(mCCD_G[9])
 	tempG = 6'b111111;
 if(mCCD_B[9])
-	tempB = 5'b11111;
+	tempB = 5'b11111; 
 end
 
-assign camcolor = {tempR, tempG, tempB};
-							
+always_ff@(posedge VGA_CLK)
+begin
+/*if(!KEY[0]) begin
+	camcolor <= 0;
+end*/
+
+/*if(invertenable)
+camcolor <= {5'b11111-tempR, 6'b111111-tempG, 5'b11111-tempB};
+else if(edgeenable)
+camcolor <= edgefilter;
+else
+camcolor <= {tempR, tempG, tempB};*/
+
+case(filterchoose)
+ 2'b00: camcolor <= {tempR, tempG, tempB};
+ 2'b01: camcolor <= {5'b11111-tempR, 6'b111111-tempG, 5'b11111-tempB};
+ 2'b10: camcolor <= edgefilter;
+ 2'b11: camcolor <= whitefilter;
+ default: camcolor <= {tempR, tempG, tempB};
+endcase
+end						
 /*I2C_CCD_Config 		u7	(	//	Host Side
 							.iCLK(CLOCK_50),
 							.iRST_N(KEY[0]),
-							.iExposure(SW[15:0]),
+							.iExposure(SW[17:2]),
 							//	I2C Side
 							.I2C_SCLK(GPIO[14]),
 							.I2C_SDAT(GPIO[15])	);*/
@@ -201,9 +221,11 @@ logic [19:0] sramaddr;
 always_comb
 begin
 	if(Read)
-		sramaddr = drawxsig+drawysig*640;
+		//sramaddr = drawxsig+{drawysig,10'b0000000000};
+		sramaddr = {drawysig,drawxsig};
 	else
-		sramaddr = X_Cont/2 + Y_Cont/2 * 640;
+		//sramaddr = X_Cont[10:1] + {Y_Cont[10:1],10'b0000000000};
+		sramaddr = {Y_Cont[10:1],X_Cont[10:1]};
 end
 
 /*always_ff @(CLOCK_50)
@@ -248,17 +270,40 @@ begin
 	VGA_G = 8'hz;
 	VGA_B = 8'hz;
 if(avail && Read && drawxsig > 80 && drawxsig < 560 && drawxsig[0])begin
- VGA_R = {color[15:11], color[14:12]};
- VGA_G = {color[10:8],color[7:5], 2'b00};
- VGA_B = {color[4:0], color[3:1]};
- end
-/* if( drawxsig > 560 || drawxsig < 80)begin
- 	VGA_R = 8'h0;
-	VGA_G = 8'h0;
-	VGA_B = 8'h0;
- 
+ //if(!SW[0])begin
+ VGA_R = tempRGB[23:16];//{color[15:11], color[14:12]};
+ VGA_G = tempRGB[15:8];//{color[10:8],color[7:5], 2'b00};
+ VGA_B = tempRGB[7:0];//{color[4:0], color[3:1]};
+ //end
+ /*else begin
+ VGA_R = edgefilter[23:16];
+ VGA_G = edgefilter[15:8];
+ VGA_B = edgefilter[7:0];
  end*/
+ end
 end
+logic [23:0] invertfilter, tempRGB;
+logic [15:0] edgefilter, whitefilter;
+logic [1:0] filterchoose;
+
+always_ff @ (posedge VGA_CLK) begin
+	if(!KEY[0]) begin
+	tempRGB <= 0;
+	end
+	else begin
+	tempRGB[23:16] <={color[15:11], color[14:12]};
+	tempRGB[15:8] <={color[10:8],color[7:5], 2'b00};
+	tempRGB[7:0] <={color[4:0], color[3:1]}; 
+	end
+end
+
+always_ff @ (posedge VGA_CLK) begin
+	filterchoose[1:0] <= SW[1:0];
+end
+
+edgeDetect (VGA_CLK, {tempR,tempG,tempB}, edgefilter, KEY[0]);
+whiteDetect (VGA_CLK, {tempR,tempG,tempB}, whitefilter, KEY[0]);
+//invert inv1(VGA_CLK, {{color[15:11], color[14:12]}, {color[10:8],color[7:5], 2'b00}, {color[4:0], color[3:1]}}, invertfilter);
 
 vga_controller vgasync_instance(      .Clk(CLOCK_50),       // 50 MHz clock
                                       .Reset(Reset_h),     // reset signal
